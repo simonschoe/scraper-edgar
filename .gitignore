@@ -1,0 +1,4 @@
+.venv/
+output/filings/*
+output/index/*
+output/sample/*
