@@ -28,6 +28,11 @@ PAT_META = {
    'comp_name':    re.compile(r'^\s*COMPANY\s*CONFORMED\s*NAME:\s*(.+)', re.IGNORECASE),
    'sic':          re.compile(r'^\s*STANDARD\s*INDUSTRIAL\s*CLASSIFICATION:.*?(\d{4})', re.IGNORECASE),
    'form_type':    re.compile(r'^\s*CONFORMED\s*SUBMISSION\s*TYPE:\s(.+)', re.IGNORECASE),
+   'street': re.compile(r'^\s*STREET\s*1?:\s(.+)', re.IGNORECASE),
+   'city': re.compile(r'^\s*CITY:\s(.+)', re.IGNORECASE),
+   'state': re.compile(r'^\s*STATE:\s(.+)', re.IGNORECASE),
+   'zip': re.compile(r'^\s*ZIP:\s(.+)', re.IGNORECASE),
+   'business_phone': re.compile(r'^\s*(BUSINESS)?\s*PHONE(\sNUMBER)?:\s(.+)', re.IGNORECASE),
    'date_report':  re.compile(r'^\s*CONFORMED\s*PERIOD\s*OF\s*REPORT:\s*(\d{8})', re.IGNORECASE),
    'date_filing':  re.compile(r'^\s*FILED\s*AS\s*OF\s*DATE:\s*(\d{8})', re.IGNORECASE),
    'hlink':        re.compile(r'(.*?(([0]*(\d+))\-(\d{2})\-(\d{6})))', re.IGNORECASE)
