@@ -191,6 +191,13 @@ def download_filings(user_agent:str, start:int, end:int, form_type:str='10-k', n
                                                         meta_match = v.search(line)
                                                         if meta_match and meta[k] == None and k != 'hlink':
                                                             meta[k] = meta_match.group(1)
+                                                            if k in ['street', 'zip', 'city', 'state']:
+                                                                meta[k] = f'{meta_match.group(1).lstrip()}'
+                                                            elif k == 'phone':
+                                                                meta[k] = meta_match.group(3)
+                                                            else:
+                                                                meta[k] = meta_match.group(1)
+                                                            break
                                                     if PAT_HEADER_END.search(line):
                                                         break
                                                 if meta['fname'] != None:
