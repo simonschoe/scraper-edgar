@@ -51,36 +51,37 @@ def sample_filings(start: int, end: int,
         Random seed for sampling
     """
     random.seed(seed)
-    PATH_SAMPLE = Path('output', 'sample')
-    PATH_SAMPLE_CSV = Path('output', 'sample', f'{form_type}_sample.csv')
+    path_sample = Path('output', 'sample')
+    path_sample_csv = Path('output', 'sample', f'{form_type}_sample.csv')
 
-    if not PATH_SAMPLE.exists():
-        PATH_SAMPLE.mkdir()
-    if not PATH_SAMPLE_CSV.exists():
-        with PATH_SAMPLE_CSV.open('w') as f:
+    if not path_sample.exists():
+        path_sample.mkdir()
+    if not path_sample_csv.exists():
+        with path_sample_csv.open('w', encoding='utf-8') as f:
             w = csv.DictWriter(f, ['id', 'year', 'quarter', 'file_name'], delimiter=';', lineterminator='\n')
             w.writeheader()
 
     for year, qtr in itertools.product(range(start, end + 1), range(1, 4 + 1)):
-        PATH_FILINGS_DIR = Path('output', 'filings', form_type, str(year), f'q{qtr}')
-        filings = [f.name for f in PATH_FILINGS_DIR.rglob('*.txt') if '_' not in f.stem]
+        path_filings_dir = Path('output', 'filings', form_type, str(year), f'q{qtr}')
+        filings = [f.name for f in path_filings_dir.rglob('*.txt') if '_' not in f.stem]
         try:
             f_samples = random.sample(filings, n)
 
-            with PATH_SAMPLE_CSV.open('a') as f:
+            with path_sample_csv.open('a', encoding='utf-8') as f:
                 w = csv.DictWriter(f, ['id', 'year', 'quarter', 'file_name'], delimiter=';', lineterminator='\n')
 
                 for s in f_samples:
                     w.writerow({'year': year, 'quarter': qtr, 'file_name': s})
                     shutil.copy(
                         Path('output', 'filings', form_type, str(year), f'q{qtr}', s),
-                        Path(PATH_SAMPLE, s)
+                        Path(path_sample, s)
                     )
                     shutil.copy(
                         Path('output', 'filings', form_type, str(year), f'q{qtr}', s.replace('.txt', f'_{section_type}.txt')),
-                        Path(PATH_SAMPLE, s.replace('.txt', f'_{section_type}.txt'))
+                        Path(path_sample, s.replace('.txt', f'_{section_type}.txt'))
                     )
-        except:
+        except Exception as e:
+            print(type(e).__name__, e)
             break
 
 
@@ -96,13 +97,13 @@ def gather_sections(form_type: str = '10-k',
         Minimum length of section in characters
     """
 
-    PATH_FILINGS_DIR = Path('output', 'filings', form_type)
-    PATH_FILINGS_POOLED = Path('output', 'filings', form_type, f'all_{section_type}.txt')
+    path_filings_dir = Path('output', 'filings', form_type)
+    path_filings_pooled = Path('output', 'filings', form_type, f'all_{section_type}.txt')
 
-    for path in PATH_FILINGS_DIR.rglob(f'*_{section_type}.txt'):
+    for path in path_filings_dir.rglob(f'*_{section_type}.txt'):
         txt = path.read_text(encoding='utf-8', errors='ignore')
         if len(txt) > min_sec_length:
-            with PATH_FILINGS_POOLED.open('a', encoding='utf-8', errors='ignore') as f:
+            with path_filings_pooled.open('a', encoding='utf-8', errors='ignore') as f:
                 f.write(txt + '\n')
 
 

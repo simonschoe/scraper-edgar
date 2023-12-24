@@ -17,18 +17,18 @@ Options:
 """
 
 
-# standard libraries
-import itertools
-import html
 import datetime as dt
+import html
+import itertools
+import re
 from pathlib import Path
 
-# third party libraries
 from docopt import docopt
 from tqdm import tqdm
 
-# own modules
-from parsing_patterns import *
+from parsing_patterns import (PAT_10K_MDA1, PAT_10K_MDA2, PAT_10Q_MDA,
+                              PAT_ITEM1, PAT_MU1, PAT_MU2, PAT_TAB1, PAT_TAB2,
+                              PAT_TOC1, PAT_TOC2)
 
 
 def clean_filings(start: int, end: int, form_type: str = '10-k'):
@@ -41,8 +41,8 @@ def clean_filings(start: int, end: int, form_type: str = '10-k'):
         Form type (one of: 8-k, 10-k, 10-k/a, 10-q, 10-q/a)
     """
 
-    PATH_LOG = Path('output', 'filings', form_type, 'log_parse.txt')
-    TAB_RATIO = 0.1
+    path_log = Path('output', 'filings', form_type, 'log_parse.txt')
+    tab_ratio = 0.1
 
     # define conditional replacement pattern for table-tags (keep if proportion of digits < 10%)
     def tab_replace(match):
@@ -54,18 +54,19 @@ def clean_filings(start: int, end: int, form_type: str = '10-k'):
         # error handling for ZeroDivisionError
         try:
             num_ratio = d / (c + d)
-            if num_ratio < TAB_RATIO:
+            if num_ratio < tab_ratio:
                 return f'[TABLE]{match.group(0)}[/TABLE]'
             else:
                 return ''
-        except:
+        except Exception as e:
+            print(type(e).__name__, e)
             return ''
 
     # iterate over all quarters in the start-end period and clean available filings
     for year, qtr in itertools.product(range(start, end + 1), range(1, 4 + 1)):
 
-        PATH_FILINGS_DIR = Path('output', 'filings', form_type, str(year), f'q{str(qtr)}')
-        filings = [f for f in PATH_FILINGS_DIR.rglob('*.txt') if not re.search('_', str(f))]
+        path_filings_dir = Path('output', 'filings', form_type, str(year), f'q{str(qtr)}')
+        filings = [f for f in path_filings_dir.rglob('*.txt') if not re.search('_', str(f))]
 
         for filing in tqdm(filings):
 
@@ -81,12 +82,12 @@ def clean_filings(start: int, end: int, form_type: str = '10-k'):
 
             with open(filing, 'w', encoding='utf-8', errors='ignore') as f:
                 f.write(txt)
-            with open(PATH_LOG, 'a') as log:
+            with open(path_log, 'a', encoding='utf-8') as log:
                 log.write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] Cleaning successful! Write to {f.name}'
                           f'\t Length: {len(txt)} chars\n')
 
     print(f'\nCleaning completed!\n'
-          f'Log-file written to {PATH_LOG}')
+          f'Log-file written to {path_log}')
 
 
 def extract_mda(start: int, end: int, form_type: str = '10-k'):
@@ -99,17 +100,17 @@ def extract_mda(start: int, end: int, form_type: str = '10-k'):
         Form type (one of: 8-k, 10-k, 10-k/a, 10-q, 10-q/a)
     """
 
-    PATH_LOG = Path('output', 'filings', form_type, 'log_extract_mda.txt')
+    path_log = Path('output', 'filings', form_type, 'log_extract_mda.txt')
 
     for year, qtr in itertools.product(range(start, end + 1), range(1, 4 + 1)):
 
-        PATH_FILINGS_DIR = Path('output', 'filings', form_type, str(year), f'q{str(qtr)}')
-        filings = [f for f in PATH_FILINGS_DIR.rglob('*.txt') if not re.search('_', str(f))]
+        path_filings_dir = Path('output', 'filings', form_type, str(year), f'q{str(qtr)}')
+        filings = [f for f in path_filings_dir.rglob('*.txt') if not re.search('_', str(f))]
 
         for filing in tqdm(filings):
 
-            PATH_MDA = Path(filing.parent, f'{filing.stem}_mda.txt')
-            if not PATH_MDA.exists():
+            path_mda = Path(filing.parent, f'{filing.stem}_mda.txt')
+            if not path_mda.exists():
                 with filing.open('r', encoding='utf-8', errors='ignore') as f:
                     txt = f.read()
                     mda = ''
@@ -133,14 +134,14 @@ def extract_mda(start: int, end: int, form_type: str = '10-k'):
                     mda = re.sub(r' (,|;|\.|’|®) ', r'\1 ', mda)
                     mda = re.sub(r'^(.*?)" -->', '', mda)
 
-                with PATH_MDA.open('w', encoding='utf-8') as f:
+                with path_mda.open('w', encoding='utf-8') as f:
                     f.write(mda)
-                with PATH_LOG.open('a') as f:
-                    f.write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] MD&A extraction successful! Write to {PATH_MDA}'
+                with path_log.open('a', encoding='utf-8') as f:
+                    f.write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] MD&A extraction successful! Write to {path_mda}'
                             f'\t Length: {len(mda)} chars\n')
 
     print(f'\nExtraction completed!\n'
-          f'Log-file written to {PATH_LOG}\n')
+          f'Log-file written to {path_log}\n')
 
 
 def extract_item1(start: int, end: int, form_type: str = '10-k'):
@@ -153,18 +154,18 @@ def extract_item1(start: int, end: int, form_type: str = '10-k'):
         Form type (one of: 8-k, 10-k, 10-k/a, 10-q, 10-q/a)
     """
 
-    PATH_LOG = Path('output', 'filings', form_type, 'log_extract_item1.txt')
+    path_log = Path('output', 'filings', form_type, 'log_extract_item1.txt')
 
     for year, qtr in itertools.product(range(start, end + 1), range(1, 4 + 1)):
 
-        PATH_FILINGS_DIR = Path('output', 'filings', form_type, str(year), f'q{str(qtr)}')
-        filings = [f for f in PATH_FILINGS_DIR.rglob('*.txt') if not re.search('_', str(f))]
+        path_filings_dir = Path('output', 'filings', form_type, str(year), f'q{str(qtr)}')
+        filings = [f for f in path_filings_dir.rglob('*.txt') if not re.search('_', str(f))]
 
         # iterate over all available filings in quarter
         for filing in tqdm(filings):
 
-            PATH_ITEM1 = Path(filing.parent, f'{filing.stem}_item1.txt')
-            if not PATH_ITEM1.exists():
+            path_item1 = Path(filing.parent, f'{filing.stem}_item1.txt')
+            if not path_item1.exists():
                 with filing.open('r', encoding='utf-8', errors='ignore') as f:
                     txt = f.read()
                     item1 = ''
@@ -180,10 +181,10 @@ def extract_item1(start: int, end: int, form_type: str = '10-k'):
                     item1 = re.sub(r' (,|;|\.|’|®) ', r'\1 ', item1)
                     item1 = re.sub(r'^(.*?)" -->', '', item1)
 
-                with PATH_ITEM1.open('w', encoding='utf-8') as f:
+                with path_item1.open('w', encoding='utf-8') as f:
                     f.write(item1)
-                with PATH_LOG.open('a') as f:
-                    f.write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] Item 1 extraction successful! Write to {PATH_ITEM1}'
+                with path_log.open('a', encoding='utf-8') as f:
+                    f.write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] Item 1 extraction successful! Write to {path_item1}'
                             f'\t Length: {len(item1)} chars\n')
 
 

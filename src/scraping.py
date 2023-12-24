@@ -19,20 +19,18 @@ Options:
 """
 
 
-# standard libraries
 import csv
+import datetime as dt
 import itertools
 import time
-import datetime as dt
 from pathlib import Path
-from urllib.request import build_opener, install_opener, urlretrieve, urlopen
+from urllib.request import build_opener, install_opener, urlopen, urlretrieve
 
-# third libraries
 import pandas as pd
 from docopt import docopt
 
-# own modules
-from parsing_patterns import *
+from parsing_patterns import (PAT_8K, PAT_10K, PAT_10KA, PAT_10Q, PAT_10QA,
+                              PAT_FNAME, PAT_META, PAT_HEADER_END)
 
 
 def download_index(user_agent: str, start: int, end: int):
@@ -45,10 +43,10 @@ def download_index(user_agent: str, start: int, end: int):
         End year for scraping
     """
 
-    EDGAR_URL_INDEX = 'https://www.sec.gov/Archives/edgar/full-index'
-    PATH_IND_DIR = Path('output', 'index')
-    if not PATH_IND_DIR.exists():
-        PATH_IND_DIR.mkdir()
+    edgar_url_index = 'https://www.sec.gov/Archives/edgar/full-index'
+    path_ind_dir = Path('output', 'index')
+    if not path_ind_dir.exists():
+        path_ind_dir.mkdir()
 
     opener = build_opener()
     opener.addheaders = [('User-Agent', user_agent)]
@@ -56,15 +54,16 @@ def download_index(user_agent: str, start: int, end: int):
 
     for year, qtr in itertools.product(range(start, end + 1), range(1, 4 + 1)):
         try:
-            URL = f'{EDGAR_URL_INDEX}/{year}/QTR{qtr}/master.idx'
-            PATH_IND = Path(PATH_IND_DIR, f'{year}_q{qtr}.idx')
-            if PATH_IND.exists():
+            url = f'{edgar_url_index}/{year}/QTR{qtr}/master.idx'
+            path_ind = Path(path_ind_dir, f'{year}_q{qtr}.idx')
+            if path_ind.exists():
                 print(f'Index file year_{year}_Q{qtr} exists already!')
             else:
                 time.sleep(2)
-                urlretrieve(URL, PATH_IND)
-                print(f'Index file year_{year}_Q{qtr} written to {PATH_IND}')
-        except:
+                urlretrieve(url, path_ind)
+                print(f'Index file year_{year}_Q{qtr} written to {path_ind}')
+        except Exception as e:
+            print(type(e).__name__, e)
             print(f'Download failed! Index file for year_{year}_Q{qtr} not available via EDGAR...')
 
 
@@ -99,8 +98,8 @@ def count_filings(start: int, end: int, form_type: str = '10-k'):
     :param str form_type:
         Form type (one of: 8-k, 10-k, 10-k/a, 10-q, 10-q/a)
     """
-    PATH_IND_DIR = Path('output', 'index')
-    PATH_COUNTS = Path('output', f'counts_{form_type}.csv')
+    path_ind_dir = Path('output', 'index')
+    path_counts = Path('output', f'counts_{form_type}.csv')
 
     if not get_form_pattern(form_type):
         return
@@ -109,20 +108,21 @@ def count_filings(start: int, end: int, form_type: str = '10-k'):
 
     counts = []
     for year, qtr in itertools.product(range(start, end + 1), range(1, 4 + 1)):
-        PATH_IND = Path(PATH_IND_DIR, f'{year}_q{qtr}.idx')
+        path_ind = Path(path_ind_dir, f'{year}_q{qtr}.idx')
         try:
-            with PATH_IND.open('r') as f:
+            with path_ind.open('r', encoding='utf-8') as f:
                 ctr = 1
                 for line in f:
                     form_ind = form_pattern.search(line)
                     if form_ind:
                         ctr += 1
             counts.append([year, qtr, ctr])
-        except:
+        except Exception as e:
+            print(type(e).__name__, e)
             print(f'Error: Download index file for {year}_q{qtr} first!')
             break
 
-    pd.DataFrame(counts, columns=['year', 'quarter', 'no_of_filings']).to_csv(PATH_COUNTS, sep=';')
+    pd.DataFrame(counts, columns=['year', 'quarter', 'no_of_filings']).to_csv(path_counts, sep=';')
 
 
 def download_filings(user_agent: str, start: int, end: int,
@@ -140,9 +140,9 @@ def download_filings(user_agent: str, start: int, end: int,
         Number of filings to be downloaded per quarter
     """
 
-    EDGAR_URL = 'https://www.sec.gov/Archives/'
-    PATH_LOG = Path('output', 'filings', form_type, 'log_download.txt')
-    PATH_META = Path('output', 'filings', form_type, 'metadata.csv')
+    edgar_url = 'https://www.sec.gov/Archives/'
+    path_log = Path('output', 'filings', form_type, 'log_download.txt')
+    path_meta = Path('output', 'filings', form_type, 'metadata.csv')
 
     opener = build_opener()
     opener.addheaders = [('User-Agent', user_agent)]  # Form: 'code mail-address'
@@ -151,17 +151,17 @@ def download_filings(user_agent: str, start: int, end: int,
     if not get_form_pattern(form_type):
         return
 
-    if not PATH_META.exists():
-        with PATH_META.open('w') as f:
+    if not path_meta.exists():
+        with path_meta.open('w', encoding='utf-8') as f:
             w = csv.DictWriter(f, PAT_META.keys(), delimiter=';', lineterminator='\n')
             w.writeheader()
 
     for year, qtr in itertools.product(range(start, end + 1), range(1, 4 + 1)):
-        PATH_FILINGS_DIR = Path('output', 'filings', form_type, str(year), f'q{str(qtr)}')
-        if not PATH_FILINGS_DIR.exists():
-            PATH_FILINGS_DIR.mkdir(parents=True)
+        path_filings_dir = Path('output', 'filings', form_type, str(year), f'q{str(qtr)}')
+        if not path_filings_dir.exists():
+            path_filings_dir.mkdir(parents=True)
         try:
-            with Path('output', 'index', f'{year}_q{qtr}.idx').open('r') as f:
+            with Path('output', 'index', f'{year}_q{qtr}.idx').open('r', encoding='utf-8') as f:
                 ctr = 1
                 for line in f:
                     if ctr <= n:
@@ -169,23 +169,23 @@ def download_filings(user_agent: str, start: int, end: int,
                         if form_ind:
                             file_ind = PAT_FNAME.search(line)
                             if file_ind:
-                                URL = f'{EDGAR_URL}/{file_ind.group(1)}'
-                                PATH_FILE = Path(PATH_FILINGS_DIR, str(file_ind.group(2)))
-                                if PATH_FILE.exists():
-                                    log = f'Already downloaded from: {URL}\nWas written to {PATH_FILE}'
+                                url = f'{edgar_url}/{file_ind.group(1)}'
+                                path_file = Path(path_filings_dir, str(file_ind.group(2)))
+                                if path_file.exists():
+                                    log = f'Already downloaded from: {url}\nWas written to {path_file}'
                                     ctr += 1
                                 else:
-                                    log = f'Download from:\t{URL}\nWriting to:\t{PATH_FILE}'
+                                    log = f'Download from:\t{url}\nWriting to:\t{path_file}'
                                     i = 0
                                     while True:
                                         try:
-                                            txt = urlopen(URL, timeout=20).read().decode('utf-8', errors='ignore')
-                                            PATH_FILE.open('w', encoding='utf-8').write(txt)
+                                            txt = urlopen(url, timeout=20).read().decode('utf-8', errors='ignore')
+                                            path_file.open('w', encoding='utf-8').write(txt)
 
                                             meta = {}
                                             for k in PAT_META.keys():
                                                 meta[k] = None
-                                            with PATH_FILE.open('r', encoding='utf-8') as f:
+                                            with path_file.open('r', encoding='utf-8') as f:
                                                 for line in f:
                                                     for k, v in PAT_META.items():
                                                         meta_match = v.search(line)
@@ -203,15 +203,15 @@ def download_filings(user_agent: str, start: int, end: int,
                                                 if meta['fname'] is not None:
                                                     f_match = PAT_META['hlink'].search(meta['fname'])
                                                     if f_match:
-                                                        meta['hlink'] = f"{EDGAR_URL}/{meta['cik']}/{f_match.group(3)}/{f_match.group(5)}/{f_match.group(6)}/{f_match.group(2)}-index.htm"
-                                                with PATH_META.open('a') as f:
+                                                        meta['hlink'] = f"{edgar_url}/{meta['cik']}/{f_match.group(3)}/{f_match.group(5)}/{f_match.group(6)}/{f_match.group(2)}-index.htm"
+                                                with path_meta.open('a', encoding='utf-8') as f:
                                                     w = csv.DictWriter(f, PAT_META.keys(), delimiter=';', lineterminator='\n')
                                                     w.writerow(meta)
 
-                                        except Exception as err:
-                                            PATH_LOG.open('a').write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {err}\n'
+                                        except Exception as e:
+                                            path_log.open('a', encoding='utf-8').write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {e}\n'
                                                                      f'Restart!\n')
-                                            print(f'{err}: {URL}\n'
+                                            print(f'{type(e).__name__} {e}: {url}\n'
                                                   f'Restart\n')
                                             time.sleep(5)
                                             i += 1
@@ -220,8 +220,9 @@ def download_filings(user_agent: str, start: int, end: int,
                                         break
                                     ctr += 1
                                 print(log, '\n')
-                                PATH_LOG.open('a').write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {log}\n')
-        except:
+                                path_log.open('a', encoding='utf-8').write(f'\n[{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {log}\n')
+        except Exception as e:
+            print(type(e).__name__, e)
             print(f'Error: Download index file for {year}_q{qtr} first!')
             break
 

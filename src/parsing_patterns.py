@@ -1,11 +1,10 @@
+"""Module for storing regular expressions used for parsing SEC filings."""
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 
-# standard libraries
 import re
 
-# third party libraries (allow variable length lookarounds)
 import regex as re_
 
 
